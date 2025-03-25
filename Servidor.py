@@ -33,7 +33,7 @@ while True:
         break  # Sinal de que terminou a transmissão
 
     pacote_id = pacote[:2]  # ID do pacote
-    flag = pacote[2]         # Flag (O, P ou E)
+    flag = pacote[2]         # Flag (S, P ou E)
     carga = pacote[3:]       # Carga útil
 
     print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")

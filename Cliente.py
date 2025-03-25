@@ -28,7 +28,7 @@ pacotes = [mensagem[i:i+tamanho_pacote] for i in range(0, len(mensagem), tamanho
 # Enviar pacotes com ID e FLAG
 for i, carga in enumerate(pacotes, start=1):
     pacote_id = f"{i:02d}"  # ID com 2 dígitos (01, 02, 03...)
-    flag = "O"  # "O" (OK), "P" (Perdido), "E" (Erro)
+    flag = "S"  # "S" (SEGURO), "P" (Perdido), "E" (Erro)
     
     pacote = f"{pacote_id}{flag}{carga.ljust(3)}"  # Garante que tenha 3 caracteres
     client_socket.sendall(pacote.encode())
