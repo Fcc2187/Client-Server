@@ -38,8 +38,8 @@ while True:
 
     print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
 
-    if flag == "O":  # Apenas armazenar pacotes corretos
-        mensagem_reconstruida[int(pacote_id)] = carga.ljust(tamanho_max)  # Preenche com espaços se necessário
+    if flag == "S":  # Apenas armazenar pacotes corretos
+        mensagem_reconstruida[int(pacote_id)] = carga.ljust(tamanho_max)
 
 # Remontar a mensagem em ordem correta
 mensagem_final = "".join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida.keys()))
