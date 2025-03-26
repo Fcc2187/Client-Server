@@ -1,7 +1,7 @@
 import socket
 
 HOST = "127.0.0.1"
-PORT = 5000
+PORT = 5001
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
@@ -29,21 +29,30 @@ mensagem_reconstruida = {}
 while True:
     pacote = conn.recv(1024).decode()
 
+    if not pacote:
+        print("Conexão encerrada pelo cliente.")
+        break  # Sai do loop ao detectar desconexão
+
     if pacote == "FIM":
         break  # Sinal de que terminou a transmissão
 
-    pacote_id = pacote[:2]  # ID do pacote
-    flag = pacote[2]         # Flag (S, P ou E)
-    carga = pacote[3:]       # Carga útil
+    if len(pacote) < 3:  # Verifica se o pacote é válido
+        print(f"Pacote inválido recebido: '{pacote}'")
+        continue
+
+    pacote_id = int(pacote[:2])  # Convertendo para inteiro para manter a ordem correta
+    flag = pacote[2]  # Flag (S, P ou E)
+    carga = pacote[3:].strip()  # Removendo espaços extras
 
     print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
 
     if flag == "S":  # Apenas armazenar pacotes corretos
-        mensagem_reconstruida[int(pacote_id)] = carga.ljust(tamanho_max)
+        mensagem_reconstruida[pacote_id] = carga  # Remover `.ljust(tamanho_max)`
 
 # Remontar a mensagem em ordem correta
 mensagem_final = "".join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida.keys()))
 print(f"Mensagem reconstruída: {mensagem_final}")
+
 
 # Fechar conexão
 conn.close()
