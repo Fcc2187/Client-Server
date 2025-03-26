@@ -7,43 +7,31 @@ client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
 # Handshake inicial
-operacao = int(input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - Modo com erro nos pacotes\n--> "))
-modos = {1: "SEGURO", 2: "PERDA", 3: "ERRO"}
-modo_operacao = modos.get(operacao, "SEGURO")
+operacao = input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - Modo com erro nos pacotes\n--> ")
 
-# Solicitar tamanho máximo da mensagem ao usuário
-tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
+if operacao == "1":
+    tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
+    mensagem = input("Digite a mensagem a ser enviada: ")
 
-# Enviar handshake informando o tamanho fixo do pacote (sempre 3)
-handshake_message = f"{modo_operacao},3"
-client_socket.sendall(handshake_message.encode())
+    if len(mensagem) > tamanho_max_mensagem:
+        print("Erro: A mensagem excede o tamanho máximo permitido!")
+    else:
+        # Enviar handshake informando o tamanho fixo do pacote
+        client_socket.sendall("SEGURO,3".encode())
+        print(f"Resposta do servidor: {client_socket.recv(1024).decode()}")
 
-# Esperando resposta do servidor
-response = client_socket.recv(1024).decode()
-print(f"Resposta do servidor: {response}")
+        # Enviar mensagem dividida em pacotes
+        tamanho_pacote = 3
+        for i, carga in enumerate([mensagem[j:j+tamanho_pacote] for j in range(0, len(mensagem), tamanho_pacote)], start=1):
+            pacote = f"{i:02d}S{carga}"
+            client_socket.sendall(pacote.encode())
+            print(f"Enviado pacote: {pacote}")
 
-# Entrada da mensagem completa a ser enviada
-mensagem = input("Digite a mensagem a ser enviada: ")
+        client_socket.sendall("FIM".encode())  # Sinal de fim
+    client_socket.close()
 
-# Verificar se a mensagem ultrapassa o limite
-if len(mensagem) > tamanho_max_mensagem:
-    print("Erro: A mensagem excede o tamanho máximo permitido!")
+elif operacao in ["2", "3"]:
+    print("Funcionalidade em desenvolvimento, volte mais tarde!")
+
 else:
-    # Quebrar a mensagem em pacotes de tamanho fixo 3
-    tamanho_pacote = 3
-    pacotes = [mensagem[i:i+tamanho_pacote] for i in range(0, len(mensagem), tamanho_pacote)]
-
-    # Enviar pacotes com ID e FLAG
-    for i, carga in enumerate(pacotes, start=1):
-        pacote_id = f"{i:02d}"  # ID com 2 dígitos (01, 02, 03...)
-        flag = "S"  # "S" (SEGURO), "P" (Perdido), "E" (Erro)
-        
-        pacote = f"{pacote_id}{flag}{carga.ljust(3)}"  # Garante que tenha 3 caracteres
-        client_socket.sendall(pacote.encode())
-        print(f"Enviado pacote: {pacote}")
-
-    # Enviar sinal de fim da transmissão
-    client_socket.sendall("FIM".encode())
-
-# Fechar conexão
-client_socket.close()
+    print("Opção inválida!")
