@@ -8,10 +8,10 @@ client_socket.connect((HOST, PORT))
 
 # Handshake inicial
 operacao = input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - Modo com erro nos pacotes\n--> ")
+tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
+mensagem = input("Digite a mensagem a ser enviada: ")
 
 if operacao == "1":
-    tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
-    mensagem = input("Digite a mensagem a ser enviada: ")
 
     if len(mensagem) > tamanho_max_mensagem:
         print("Erro: A mensagem excede o tamanho máximo permitido!")

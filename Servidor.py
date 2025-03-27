@@ -14,7 +14,7 @@ print(f"Conexão estabelecida com {addr}")
 
 # Recebendo handshake
 modo_operacao, tamanho_max = conn.recv(1024).decode().split(",")
-print(f"Modo de operação: {modo_operacao}\nTamanho máximo: {tamanho_max}")
+print(f"Modo de operação: {modo_operacao}\nTamanho máximo por pacote: {tamanho_max}")
 
 # Confirmar handshake
 conn.sendall(f"HANDSHAKE_OK:{modo_operacao}".encode())
