@@ -1,4 +1,5 @@
 import socket
+import random
 
 HOST = "127.0.0.1"
 PORT = 5001
@@ -31,11 +32,21 @@ try:
         if pacote == "FIM":
             break  # Finaliza ao receber "FIM"
 
-        if len(pacote) < 3:  # Validação única
+        if len(pacote) < 3:
             print(f"Pacote inválido: '{pacote}'")
             continue
 
         pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
+        
+        # Simulação de perda de pacotes
+        if modo_operacao == "2" and random.random() < 0.2:  # 20% de chance de perda
+            print(f"Pacote {pacote_id} perdido!")
+            continue
+        
+        # Simulação de erro nos pacotes
+        if modo_operacao == "3" and random.random() < 0.2:  # 20% de chance de erro
+            carga = "X" * len(carga)  # Corrompe os dados
+            print(f"Pacote {pacote_id} corrompido!")
         
         # Verifica se o tamanho do pacote é maior que o permitido
         if len(carga) > tamanho_max:

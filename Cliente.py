@@ -1,4 +1,5 @@
 import socket
+import random
 
 HOST = "127.0.0.1"
 PORT = 5001
@@ -11,27 +12,32 @@ operacao = input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - M
 tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
 mensagem = input("Digite a mensagem a ser enviada: ")
 
-if operacao == "1":
-
+if operacao in ["1", "2", "3"]:
     if len(mensagem) > tamanho_max_mensagem:
         print("Erro: A mensagem excede o tamanho máximo permitido!")
     else:
-        # Enviar handshake informando o tamanho fixo do pacote
-        client_socket.sendall("SEGURO,3".encode())
+        # Enviar handshake informando o modo e o tamanho fixo do pacote
+        client_socket.sendall(f"{operacao},3".encode())
         print(f"Resposta do servidor: {client_socket.recv(1024).decode()}")
 
         # Enviar mensagem dividida em pacotes
         tamanho_pacote = 3
         for i, carga in enumerate([mensagem[j:j+tamanho_pacote] for j in range(0, len(mensagem), tamanho_pacote)], start=1):
+            # Simulação de perda de pacotes
+            if operacao == "2" and random.random() < 0.2:
+                print(f"Pacote {i:02d} perdido!")
+                continue
+
+            # Simulação de erro nos pacotes
+            if operacao == "3" and random.random() < 0.2:
+                carga = "X" * len(carga)  # Corrompe os dados
+                print(f"Pacote {i:02d} corrompido!")
+            
             pacote = f"{i:02d}S{carga}"
             client_socket.sendall(pacote.encode())
             print(f"Enviado pacote: {pacote}")
 
         client_socket.sendall("FIM".encode())  # Sinal de fim
     client_socket.close()
-
-elif operacao in ["2", "3"]:
-    print("Funcionalidade em desenvolvimento, volte mais tarde!")
-
 else:
     print("Opção inválida!")
