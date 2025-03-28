@@ -12,34 +12,47 @@ print(f"Servidor aguardando conexões na porta {PORT}...")
 conn, addr = server_socket.accept()
 print(f"Conexão estabelecida com {addr}")
 
-# Recebendo handshake
-modo_operacao, tamanho_max = conn.recv(1024).decode().split(",")
-print(f"Modo de operação: {modo_operacao}\nTamanho máximo por pacote: {tamanho_max}")
+try:
+    # Recebendo handshake
+    dados_handshake = conn.recv(1024).decode()
+    modo_operacao, tamanho_max = dados_handshake.split(",")
+    tamanho_max = int(tamanho_max)
+    print(f"Modo de operação: {modo_operacao}\nTamanho máximo por pacote: {tamanho_max}")
 
-# Confirmar handshake
-conn.sendall(f"HANDSHAKE_OK:{modo_operacao}".encode())
+    # Confirmar handshake
+    conn.sendall(f"HANDSHAKE_OK:{modo_operacao}".encode())
 
-# Dicionário para armazenar pacotes recebidos
-mensagem_reconstruida = {}
+    # Dicionário para armazenar pacotes recebidos
+    mensagem_reconstruida = {}
 
-while True:
-    pacote = conn.recv(1024).decode()
+    while True:
+        pacote = conn.recv(1024).decode()
 
-    if pacote == "FIM":
-        break  # Finaliza ao receber "FIM"
+        if pacote == "FIM":
+            break  # Finaliza ao receber "FIM"
 
-    if len(pacote) < 3:  # Validação única
-        print(f"Pacote inválido: '{pacote}'")
-        continue
+        if len(pacote) < 3:  # Validação única
+            print(f"Pacote inválido: '{pacote}'")
+            continue
 
-    pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
-    print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
+        pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
+        
+        # Verifica se o tamanho do pacote é maior que o permitido
+        if len(carga) > tamanho_max:
+            print(f"Erro: Pacote {pacote_id} excede o tamanho máximo permitido ({tamanho_max} bytes). Ignorado.")
+            continue
 
-    if flag == "S":
-        mensagem_reconstruida[pacote_id] = carga  # Apenas armazenar pacotes seguros
+        print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
 
-# Reconstrução da mensagem na ordem correta
-print(f"Mensagem reconstruída: {''.join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida))}")
+        if flag == "S":
+            mensagem_reconstruida[pacote_id] = carga  # Apenas armazenar pacotes seguros
 
-conn.close()
-server_socket.close()
+    # Reconstrução da mensagem na ordem correta
+    mensagem_final = "".join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida))
+    print(f"Mensagem reconstruída: {mensagem_final}")
+
+except Exception as e:
+    print(f"Erro no servidor, tente novamente: {e}")
+finally:
+    conn.close()
+    server_socket.close()
