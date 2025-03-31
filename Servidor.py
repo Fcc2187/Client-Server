@@ -39,12 +39,12 @@ try:
         pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
         
         # Simulação de perda de pacotes
-        if modo_operacao == "2" and random.random() < 0.2:  # 20% de chance de perda
+        if modo_operacao == "2" and random.random() < 0.4:  # 40% de chance de perda
             print(f"Pacote {pacote_id} perdido!")
             continue
         
         # Simulação de erro nos pacotes
-        if modo_operacao == "3" and random.random() < 0.2:  # 20% de chance de erro
+        if modo_operacao == "3" and random.random() < 0.4:  # 40% de chance de erro
             carga = "X" * len(carga)  # Corrompe os dados
             print(f"Pacote {pacote_id} corrompido!")
         
