@@ -29,34 +29,35 @@ try:
     while True:
         pacote = conn.recv(1024).decode()
 
-        if pacote == "FIM":
-            break  # Finaliza ao receber "FIM"
+        if pacote:
+            if pacote == "FIM":
+                break  # Finaliza ao receber "FIM"
 
-        if len(pacote) < 3:
-            print(f"Pacote inválido: '{pacote}'")
-            continue
+            if len(pacote) < 3:
+                print(f"Pacote inválido: '{pacote}'")
+                continue
 
-        pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
-        
-        # Simulação de perda de pacotes
-        if modo_operacao == "2" and random.random() < 0.4:  # 40% de chance de perda
-            print(f"Pacote {pacote_id} perdido!")
-            continue
-        
-        # Simulação de erro nos pacotes
-        if modo_operacao == "3" and random.random() < 0.4:  # 40% de chance de erro
-            carga = "X" * len(carga)  # Corrompe os dados
-            print(f"Pacote {pacote_id} corrompido!")
-        
-        # Verifica se o tamanho do pacote é maior que o permitido
-        if len(carga) > tamanho_max:
-            print(f"Erro: Pacote {pacote_id} excede o tamanho máximo permitido ({tamanho_max} bytes). Ignorado.")
-            continue
+            pacote_id, flag, carga = int(pacote[:2]), pacote[2], pacote[3:]
+            
+            # Simulação de perda de pacotes
+            if modo_operacao == "2" and random.random() < 0.25:  # 40% de chance de perda
+                print(f"Pacote {pacote_id} perdido!")
+                continue
+            
+            # Simulação de erro nos pacotes
+            if modo_operacao == "3" and random.random() < 0.25:  # 40% de chance de erro
+                carga = "X" * len(carga)  # Corrompe os dados
+                print(f"Pacote {pacote_id} corrompido!")
+            
+            # Verifica se o tamanho do pacote é maior que o permitido
+            if len(carga) > tamanho_max:
+                print(f"Erro: Pacote {pacote_id} excede o tamanho máximo permitido ({tamanho_max} bytes). Ignorado.")
+                continue
 
-        print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
+            print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}")
 
-        if flag == "S":
-            mensagem_reconstruida[pacote_id] = carga  # Apenas armazenar pacotes seguros
+            if flag == "S":
+                mensagem_reconstruida[pacote_id] = carga  # Apenas armazenar pacotes seguros
 
     # Reconstrução da mensagem na ordem correta
     mensagem_final = "".join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida))
