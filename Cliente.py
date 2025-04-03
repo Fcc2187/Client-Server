@@ -10,7 +10,7 @@ def calcular_checksum(dados):
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
-
+gbn_rs = input("Digite:\n1 - Go back N\n2 - Repetição Seletiva\n--> ")
 operacao = input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - Modo com erro nos pacotes\n--> ")
 try:
     if operacao not in ["1", "2", "3"]:
