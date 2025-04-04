@@ -6,7 +6,7 @@ HOST = "127.0.0.1"
 PORT = 5001
 
 def calcular_checksum(dados):
-    return hashlib.md5(dados.encode()).hexdigest()[:8]  # Usando os primeiros 8 caracteres do hash
+    return hashlib.md5(dados.encode()).hexdigest()[:8]
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
