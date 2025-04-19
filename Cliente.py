@@ -1,50 +1,141 @@
+# Cliente.py
 import socket
-import random
+import threading
 import hashlib
+import random
+import time
 
 HOST = "127.0.0.1"
 PORT = 5001
 
-def calcular_checksum(dados):
+def calcular_checksum(dados: str) -> str:
     return hashlib.md5(dados.encode()).hexdigest()[:8]
 
+def enviar_pacote(seq: int, carga: str):
+    global modo_erro
+    # simula perda
+    if modo_erro == "2" and random.random() < 0.4:
+        print(f"[CLIENT] Pacote {seq:02d} perdido!")
+        return
+    # simula corrupção
+    if modo_erro == "3" and random.random() < 0.4:
+        carga = "X" * len(carga)
+        print(f"[CLIENT] Pacote {seq:02d} corrompido!")
+    checksum = calcular_checksum(carga)
+    frame = f"{seq:02d} - S - {carga} - {checksum}"
+    client_socket.sendall(frame.encode())
+    print(f"[CLIENT] Enviado: {frame}")
+
+def ack_listener():
+    global send_base
+    while True:
+        try:
+            data = client_socket.recv(1024)
+            if not data:
+                break
+            resp = data.decode()
+        except ConnectionResetError:
+            break
+
+        if resp == "FIM_ACK":
+            break
+
+        if resp.startswith("ACK"):
+            num = int(resp[3:5])
+            print(f"[CLIENT] Recebeu ACK {num:02d}")
+            if protocolo == "1":            # Go‑Back‑N
+                if num >= send_base:
+                    send_base = num + 1
+                    timers['gbn'].cancel()
+                    if send_base < next_seq:
+                        t = threading.Timer(timeout, timeout_gbn)
+                        timers['gbn'] = t; t.start()
+            else:                           # Selective Repeat
+                if num not in acked:
+                    acked.add(num)
+                    timers[num].cancel()
+                if num == send_base:
+                    while send_base in acked:
+                        send_base += 1
+
+        elif resp.startswith("NAK"):
+            num = int(resp[3:5])
+            print(f"[CLIENT] Recebeu NAK {num:02d}")
+            if protocolo == "1":
+                timers['gbn'].cancel()
+                timeout_gbn()
+            else:
+                enviar_pacote(num, frames[num-1])
+                timers[num].cancel()
+                t = threading.Timer(timeout, lambda idx=num: timeout_sr(idx))
+                timers[num] = t; t.start()
+
+    print("[CLIENT] Listener encerrado")
+
+def timeout_gbn():
+    global send_base
+    print(f"[CLIENT] Timeout GBN, retransmitindo a partir de {send_base:02d}")
+    for i in range(send_base, min(send_base + window_size, n_frames + 1)):
+        enviar_pacote(i, frames[i-1])
+    t = threading.Timer(timeout, timeout_gbn)
+    timers['gbn'] = t; t.start()
+
+def timeout_sr(idx: int):
+    print(f"[CLIENT] Timeout SR para pacote {idx:02d}, retransmitindo")
+    enviar_pacote(idx, frames[idx-1])
+    t = threading.Timer(timeout, lambda: timeout_sr(idx))
+    timers[idx] = t; t.start()
+
+
+# ----------- MAIN -----------
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
-gbn_rs = input("Digite:\n1 - Go back N\n2 - Repetição Seletiva\n--> ")
-operacao = input("Digite:\n1 - Modo Seguro\n2 - Modo com perda de pacotes\n3 - Modo com erro nos pacotes\n--> ")
-try:
-    if operacao not in ["1", "2", "3"]:
-        print("Erro: Modo de operação inválido!")
-        client_socket.close()
-        exit()
-    else:
-        tamanho_max_mensagem = int(input("Digite o tamanho máximo da mensagem: "))
-        mensagem = input("Digite a mensagem a ser enviada: ")
 
-        if len(mensagem) > tamanho_max_mensagem:
-            print("Erro: A mensagem excede o tamanho máximo permitido!")
-        else:
-            client_socket.sendall(f"{operacao},3".encode())
-            print(f"Resposta do servidor: {client_socket.recv(1024).decode()}")
+protocolo   = input("Protocolo (1=Go‑Back‑N, 2=Repetição Seletiva): ")
+modo_erro   = input("Modo (1=Seguro, 2=Com perda, 3=Com erro): ")
+packet_size = 3
+window_size = int(input("Tamanho da janela: "))
+timeout     = float(input("Timeout (segundos): "))
+mensagem    = input("Mensagem a enviar: ")
 
-            tamanho_pacote = 3
-            for i, carga in enumerate([mensagem[j:j+tamanho_pacote] for j in range(0, len(mensagem), tamanho_pacote)], start=1):
-                if operacao == "2" and random.random() < 0.4:
-                    print(f"Pacote {i:02d} perdido!")
-                    continue
-                
-                if operacao == "3" and random.random() < 0.4:
-                    carga = "X" * len(carga)
-                    print(f"Pacote {i:02d} corrompido!")
-                
-                checksum = calcular_checksum(carga)
-                pacote = f"{i:02d} - S - {carga} - {checksum}"
-                client_socket.sendall(pacote.encode())
-                print(f"Enviado pacote: {pacote}")
+# Handshake corrido: protocolo, modo de erro, packet_size, window_size
+client_socket.sendall(f"{protocolo},{modo_erro},{packet_size},{window_size}".encode())
+resp = client_socket.recv(1024).decode()
+print(f"[CLIENT] Handshake: {resp}")
 
-            client_socket.sendall("FIM".encode())
+frames     = [mensagem[i:i+packet_size] for i in range(0, len(mensagem), packet_size)]
+n_frames   = len(frames)
+send_base  = 1
+next_seq   = 1
+acked      = set()
+timers     = {}
 
-except ValueError:
-    print("Erro: Tamanho máximo inválido!")
-finally:
-    client_socket.close()
+listener = threading.Thread(target=ack_listener)
+listener.start()
+
+if protocolo == "1":
+    timers['gbn'] = threading.Timer(timeout, timeout_gbn)
+    timers['gbn'].start()
+    while send_base <= n_frames:
+        while next_seq < send_base + window_size and next_seq <= n_frames:
+            enviar_pacote(next_seq, frames[next_seq-1])
+            next_seq += 1
+        time.sleep(0.1)
+else:
+    while next_seq < send_base + window_size and next_seq <= n_frames:
+        enviar_pacote(next_seq, frames[next_seq-1])
+        t = threading.Timer(timeout, lambda idx=next_seq: timeout_sr(idx))
+        timers[next_seq] = t; t.start()
+        next_seq += 1
+    while len(acked) < n_frames:
+        time.sleep(0.1)
+
+# sinaliza fim
+client_socket.sendall("FIM".encode())
+client_socket.sendall("FIM_ACK".encode())
+
+for t in timers.values(): t.cancel()
+listener.join()
+
+client_socket.close()
+print("[CLIENT] Conexão encerrada")

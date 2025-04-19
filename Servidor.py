@@ -1,73 +1,80 @@
+# Servidor.py
 import socket
 import hashlib
 
 HOST = "127.0.0.1"
 PORT = 5001
 
-MODOS_OPERACAO = {
-    "1": "Seguro",
-    "2": "Com Perda",
-    "3": "Com Erro"
-}
+MODOS_ERRO = {"1": "Seguro", "2": "Com Perda", "3": "Com Erro"}
 
-def calcular_checksum(dados):
+def calcular_checksum(dados: str) -> str:
     return hashlib.md5(dados.encode()).hexdigest()[:8]
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
 server_socket.listen()
-
-print(f"Servidor aguardando conexões na porta {PORT}...")
+print(f"[SERVER] Aguardando conexões em {HOST}:{PORT}...")
 
 conn, addr = server_socket.accept()
-print(f"Conexão estabelecida com {addr}")
+print(f"[SERVER] Conectado por {addr}")
 
 try:
-    dados_handshake = conn.recv(1024).decode()
-    modo_operacao, tamanho_max = dados_handshake.split(",")
-    tamanho_max = int(tamanho_max)
-    nome_modo = MODOS_OPERACAO.get(modo_operacao, "Desconhecido")
-    print(f"Modo de operação: {nome_modo}\nTamanho máximo por pacote: {tamanho_max}")
+    hs = conn.recv(1024).decode().split(",")
+    protocolo, modo_erro, chunk_size, window_size = hs[0], hs[1], int(hs[2]), int(hs[3])
+    print(f"[SERVER] Protocolo={'GBN' if protocolo=='1' else 'SR'}, Modo={MODOS_ERRO.get(modo_erro)}, PacketMax={chunk_size}, Janela={window_size}")
+    conn.sendall(f"HANDSHAKE_OK:{'GBN' if protocolo=='1' else 'SR'}".encode())
 
-    conn.sendall(f"HANDSHAKE_OK:{nome_modo}".encode())
-
-    mensagem_reconstruida = {}
+    frames_recv = {}
+    if protocolo == "1":
+        expected = 1
+    else:
+        recv_base = 1
+        buffer_sr = {}
 
     while True:
-        pacote = conn.recv(1024).decode()
-        
-        if pacote:
-            if pacote == "FIM":
-                break
+        data = conn.recv(1024).decode()
+        if not data:
+            continue
+        if data == "FIM":
+            break
 
-            partes = pacote.split(" - ")
-            if len(partes) != 4:
-                print(f"Pacote inválido: '{pacote}'")
-                continue
+        partes = data.split(" - ")
+        if len(partes) != 4:
+            print(f"[SERVER] Frame inválido: {data}")
+            continue
 
-            pacote_id, flag, carga, checksum_recebido = partes
-            pacote_id = int(pacote_id)
+        seq, flag, carga, chk = int(partes[0]), partes[1], partes[2], partes[3]
+        if chk != calcular_checksum(carga) or len(carga) > chunk_size:
+            print(f"[SERVER] Erro no pacote {seq:02d}, enviando NAK")
+            conn.sendall(f"NAK{seq:02d}".encode())
+            continue
 
-            checksum_calculado = calcular_checksum(carga)
-            if checksum_calculado != checksum_recebido:
-                print(f"Erro: Checksum inválido para pacote {pacote_id}. Pacote ignorado.")
-                continue
-            
-            if len(carga) > tamanho_max:
-                print(f"Erro: Pacote {pacote_id} excede o tamanho máximo permitido ({tamanho_max} bytes). Ignorado.")
-                continue
+        print(f"[SERVER] Recebido pacote {seq:02d}: '{carga}'")
 
-            print(f"Recebido pacote {pacote_id}: Flag={flag}, Carga={carga}, Checksum={checksum_recebido}")
+        if protocolo == "1":
+            # Go‑Back‑N
+            if seq == expected:
+                frames_recv[seq] = carga
+                conn.sendall(f"ACK{seq:02d}".encode())
+                expected += 1
+            else:
+                conn.sendall(f"ACK{expected-1:02d}".encode())
+        else:
+            # Selective Repeat
+            if recv_base <= seq < recv_base + window_size and seq not in buffer_sr:
+                buffer_sr[seq] = carga
+                conn.sendall(f"ACK{seq:02d}".encode())
+                if seq == recv_base:
+                    while recv_base in buffer_sr:
+                        frames_recv[recv_base] = buffer_sr.pop(recv_base)
+                        recv_base += 1
+            else:
+                conn.sendall(f"ACK{seq:02d}".encode())
 
-            if flag == "S":
-                mensagem_reconstruida[pacote_id] = carga
+    final = "".join(frames_recv[i] for i in sorted(frames_recv))
+    print(f"[SERVER] Mensagem reconstruída: {final}")
 
-    mensagem_final = "".join(mensagem_reconstruida[i] for i in sorted(mensagem_reconstruida))
-    print(f"Mensagem reconstruída: {mensagem_final}")
-
-except Exception as e:
-    print(f"Erro no servidor, tamanho da mensagem máxima menor que o tamanho do pacote.")
 finally:
     conn.close()
     server_socket.close()
-    print("Conexão encerrada.")
+    print("[SERVER] Conexão encerrada")
