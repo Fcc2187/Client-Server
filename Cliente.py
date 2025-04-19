@@ -13,16 +13,19 @@ def calcular_checksum(dados: str) -> str:
 
 def enviar_pacote(seq: int, carga: str):
     global modo_erro
-    # simula perda
+    
+    checksum = calcular_checksum(carga)
+
     if modo_erro == "2" and random.random() < 0.4:
         print(f"[CLIENT] Pacote {seq:02d} perdido!")
         return
-    # simula corrupção
+
+    payload = carga
     if modo_erro == "3" and random.random() < 0.4:
-        carga = "X" * len(carga)
-        print(f"[CLIENT] Pacote {seq:02d} corrompido!")
-    checksum = calcular_checksum(carga)
-    frame = f"{seq:02d} - S - {carga} - {checksum}"
+        payload = "X" * len(carga)
+        print(f"[CLIENT] Pacote {seq:02d} corrompido! (enviado '{payload}')")
+
+    frame = f"{seq:02d} - S - {payload} - {checksum}"
     client_socket.sendall(frame.encode())
     print(f"[CLIENT] Enviado: {frame}")
 
@@ -86,19 +89,16 @@ def timeout_sr(idx: int):
     t = threading.Timer(timeout, lambda: timeout_sr(idx))
     timers[idx] = t; t.start()
 
-
-# ----------- MAIN -----------
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
-protocolo   = input("Protocolo (1=Go‑Back‑N, 2=Repetição Seletiva): ")
-modo_erro   = input("Modo (1=Seguro, 2=Com perda, 3=Com erro): ")
+protocolo   = input("Protocolo:\n1=Go‑Back‑N\n2=Repetição Seletiva\n-> ")
+modo_erro   = input("Modo:\n1=Seguro\n2=Com perda\n3=Com erro\n-> ")
 packet_size = 3
 window_size = int(input("Tamanho da janela: "))
 timeout     = float(input("Timeout (segundos): "))
 mensagem    = input("Mensagem a enviar: ")
 
-# Handshake corrido: protocolo, modo de erro, packet_size, window_size
 client_socket.sendall(f"{protocolo},{modo_erro},{packet_size},{window_size}".encode())
 resp = client_socket.recv(1024).decode()
 print(f"[CLIENT] Handshake: {resp}")
@@ -130,12 +130,12 @@ else:
     while len(acked) < n_frames:
         time.sleep(0.1)
 
-# sinaliza fim
 client_socket.sendall("FIM".encode())
-client_socket.sendall("FIM_ACK".encode())
 
-for t in timers.values(): t.cancel()
 listener.join()
+
+for t in timers.values():
+    t.cancel()
 
 client_socket.close()
 print("[CLIENT] Conexão encerrada")

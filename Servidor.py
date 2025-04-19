@@ -21,8 +21,9 @@ print(f"[SERVER] Conectado por {addr}")
 try:
     hs = conn.recv(1024).decode().split(",")
     protocolo, modo_erro, chunk_size, window_size = hs[0], hs[1], int(hs[2]), int(hs[3])
-    print(f"[SERVER] Protocolo={'GBN' if protocolo=='1' else 'SR'}, Modo={MODOS_ERRO.get(modo_erro)}, PacketMax={chunk_size}, Janela={window_size}")
-    conn.sendall(f"HANDSHAKE_OK:{'GBN' if protocolo=='1' else 'SR'}".encode())
+    tipo = 'GBN' if protocolo=='1' else 'SR'
+    print(f"[SERVER] Protocolo={tipo}, Modo={MODOS_ERRO[modo_erro]}, PacketMax={chunk_size}, Janela={window_size}")
+    conn.sendall(f"HANDSHAKE_OK:{tipo}".encode())
 
     frames_recv = {}
     if protocolo == "1":
@@ -35,7 +36,10 @@ try:
         data = conn.recv(1024).decode()
         if not data:
             continue
+
         if data == "FIM":
+            # confirma ao cliente que terminou
+            conn.sendall("FIM_ACK".encode())
             break
 
         partes = data.split(" - ")
