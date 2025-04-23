@@ -28,3 +28,9 @@ Nosso objetivo : o cliente deve se conectar ao servidor e enviar mensagens de te
    
   - Lucas Sukar - lfsw@cesar.school 📩
 </details>
+
+<details>
+
+https://docs.google.com/document/d/1MR3oCOo52pLltc3Mz9VxpoINL5WqzYrdI8d1ve053KQ/edit?usp=sharing
+
+</details>
