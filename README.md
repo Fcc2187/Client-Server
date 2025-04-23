@@ -30,8 +30,8 @@ Nosso objetivo : o cliente deve se conectar ao servidor e enviar mensagens de te
 </details>
 
 <details>
-<summary>Relatório Seminário</summary>
-
+<summary>Relatório</summary>
+## Relatório
   
 https://docs.google.com/document/d/1MR3oCOo52pLltc3Mz9VxpoINL5WqzYrdI8d1ve053KQ/edit?usp=sharing
 
