@@ -7,8 +7,11 @@ PORT = 5001
 
 MODOS_ERRO = {"1": "Seguro", "2": "Com Perda", "3": "Com Erro"}
 
-def calcular_checksum(dados: str) -> str:
-    return hashlib.md5(dados.encode()).hexdigest()[:8]
+def calcular_checksum_manual(dados: str) -> str:
+    soma = 0
+    for i, c in enumerate(dados):
+        soma += (i + 1) * ord(c)
+    return hex(soma)[2:].zfill(8)[:8]
 
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server_socket.bind((HOST, PORT))
@@ -48,7 +51,7 @@ try:
             continue
 
         seq, flag, carga, chk = int(partes[0]), partes[1], partes[2], partes[3]
-        if chk != calcular_checksum(carga) or len(carga) > chunk_size:
+        if chk != calcular_checksum_manual(carga) or len(carga) > chunk_size:
             print(f"[SERVER] Erro no pacote {seq:02d}, enviando NAK")
             conn.sendall(f"NAK{seq:02d}".encode())
             continue

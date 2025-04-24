@@ -8,13 +8,16 @@ import time
 HOST = "127.0.0.1"
 PORT = 5001
 
-def calcular_checksum(dados: str) -> str:
-    return hashlib.md5(dados.encode()).hexdigest()[:8]
+def calcular_checksum_manual(dados: str) -> str:
+    soma = 0
+    for i, c in enumerate(dados):
+        soma += (i + 1) * ord(c)  
+    return hex(soma)[2:].zfill(8)[:8]
 
 def enviar_pacote(seq: int, carga: str):
     global modo_erro
     
-    checksum = calcular_checksum(carga)
+    checksum = calcular_checksum_manual(carga)
 
     if modo_erro == "2" and random.random() < 0.4:
         print(f"[CLIENT] Pacote {seq:02d} perdido!")
@@ -77,6 +80,8 @@ def ack_listener():
 
 def timeout_gbn():
     global send_base
+    if send_base > n_frames:
+        return  
     print(f"[CLIENT] Timeout GBN, retransmitindo a partir de {send_base:02d}")
     for i in range(send_base, min(send_base + window_size, n_frames + 1)):
         enviar_pacote(i, frames[i-1])
