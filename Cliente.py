@@ -49,20 +49,24 @@ def ack_listener():
         if resp.startswith("ACK"):
             num = int(resp[3:5])
             print(f"[CLIENT] Recebeu ACK {num:02d}")
-            if protocolo == "1":            # Go‑Back‑N
+            if protocolo == "1":            
                 if num >= send_base:
                     send_base = num + 1
                     timers['gbn'].cancel()
                     if send_base < next_seq:
                         t = threading.Timer(timeout, timeout_gbn)
                         timers['gbn'] = t; t.start()
-            else:                           # Selective Repeat
+            elif protocolo == "2":                           
                 if num not in acked:
                     acked.add(num)
                     timers[num].cancel()
                 if num == send_base:
                     while send_base in acked:
                         send_base += 1
+            
+            else:
+                print(f"[CLIENT] Escolha inválida: {protocolo}")
+                break
 
         elif resp.startswith("NAK"):
             num = int(resp[3:5])

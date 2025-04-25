@@ -41,7 +41,6 @@ try:
             continue
 
         if data == "FIM":
-            # confirma ao cliente que terminou
             conn.sendall("FIM_ACK".encode())
             break
 
@@ -59,15 +58,13 @@ try:
         print(f"[SERVER] Recebido pacote {seq:02d}: '{carga}'")
 
         if protocolo == "1":
-            # Go‑Back‑N
             if seq == expected:
                 frames_recv[seq] = carga
                 conn.sendall(f"ACK{seq:02d}".encode())
                 expected += 1
             else:
                 conn.sendall(f"ACK{expected-1:02d}".encode())
-        else:
-            # Selective Repeat
+        elif protocolo == "2":
             if recv_base <= seq < recv_base + window_size and seq not in buffer_sr:
                 buffer_sr[seq] = carga
                 conn.sendall(f"ACK{seq:02d}".encode())
