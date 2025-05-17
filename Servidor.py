@@ -51,7 +51,7 @@ try:
                 seq = int(data[:2])
                 conn.sendall(f"NAK{seq:02d}".encode())
             except:
-                conn.sendall("NAK00".encode())  # valor padrão se não for possível extrair o seq
+                conn.sendall("NAK00".encode())  
             continue
 
 
