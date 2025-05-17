@@ -47,7 +47,13 @@ try:
         partes = data.split(" - ")
         if len(partes) != 4:
             print(f"[SERVER] Frame inválido: {data}")
+            try:
+                seq = int(data[:2])
+                conn.sendall(f"NAK{seq:02d}".encode())
+            except:
+                conn.sendall("NAK00".encode())  # valor padrão se não for possível extrair o seq
             continue
+
 
         seq, flag, carga, chk = int(partes[0]), partes[1], partes[2], partes[3]
         if chk != calcular_checksum_manual(carga) or len(carga) > chunk_size:
