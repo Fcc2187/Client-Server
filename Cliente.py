@@ -88,8 +88,10 @@ def ack_listener():
                     send_base = num + 1
                     timers['gbn'].cancel()
                     if send_base < next_seq:
-                        t = threading.Timer(timeout, timeout_gbn)
-                        timers['gbn'] = t; t.start()
+                        if 'gbn' in timers:
+                            timers['gbn'].cancel()
+                        timers['gbn'] = threading.Timer(timeout, timeout_gbn)
+                        timers['gbn'].start()
             elif protocolo == "2":
                 if num not in acked:
                     acked.add(num)
@@ -133,8 +135,10 @@ def timeout_sr(idx: int):
         return  # já foi recebido, ignora timeout
     print(f"[CLIENT] Timeout SR para pacote {idx:02d}, retransmitindo")
     enviar_pacote(idx, frames[idx-1])
-    t = threading.Timer(timeout, lambda: timeout_sr(idx))
-    timers[idx] = t; t.start()
+    if idx in timers:
+        timers[idx].cancel()
+    timers[idx] = threading.Timer(timeout, lambda: timeout_sr(idx))
+    timers[idx].start()
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
