@@ -58,7 +58,15 @@ try:
         seq, flag, carga, chk = int(partes[0]), partes[1], partes[2], partes[3]
         if chk != calcular_checksum_manual(carga) or len(carga) > chunk_size:
             print(f"[SERVER] Erro no pacote {seq:02d}, enviando NAK")
-            conn.sendall(f"NAK{seq:02d}".encode())
+            
+            #para GBN, reenviar tudo
+            if protocolo == "1":
+                conn.sendall(f"NAK{seq:02d}".encode())
+            
+            #para SR, reenviar só o pacote errado
+            elif protocolo == "2":
+                conn.sendall(f"NAK{seq:02d}".encode())
+            
             continue
 
         print(f"[SERVER] Recebido pacote {seq:02d}: '{carga}'")

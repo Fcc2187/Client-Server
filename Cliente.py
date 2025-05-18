@@ -16,7 +16,17 @@ def calcular_checksum_manual(dados: str) -> str:
 
 def enviar_pacote(seq: int, carga: str):
     global modo_erro
-    
+
+    #verifica se o socket ainda está aberto
+    if client_socket.fileno() == -1:
+        print(f"[CLIENT] Tentativa de envio ignorada — socket já foi fechado.")
+        return
+
+    #delay aleatório apenas no modo 2 e 3
+    if modo_erro in ["2", "3"]:
+        delay = random.uniform(0, 2)
+        time.sleep(delay)
+
     checksum = calcular_checksum_manual(carga)
 
     if modo_erro == "2" and random.random() < 0.4:
@@ -29,8 +39,32 @@ def enviar_pacote(seq: int, carga: str):
         print(f"[CLIENT] Pacote {seq:02d} corrompido! (enviado '{payload}')")
 
     frame = f"{seq:02d} - S - {payload} - {checksum}"
-    client_socket.sendall(frame.encode())
-    print(f"[CLIENT] Enviado: {frame}")
+
+    try:
+        client_socket.sendall(frame.encode())
+        print(f"[CLIENT] Enviado: {frame}")
+    except OSError:
+        print(f"[CLIENT] Erro: não foi possível enviar o pacote {seq:02d} — socket fechado.")
+        return
+
+    #envio duplicado ou fora de ordem (somente nos modos 2 e 3)
+    if modo_erro in ["2", "3"] and random.random() < 0.2:
+        tipo = random.choice(["duplicado", "fora_ordem"])
+        time.sleep(0.1)
+
+        if tipo == "duplicado":
+            try:
+                client_socket.sendall(frame.encode())
+                print(f"[CLIENT] Enviado duplicado: {frame}")
+            except OSError:
+                print(f"[CLIENT] Erro ao duplicar o pacote {seq:02d} — socket fechado.")
+        elif tipo == "fora_ordem" and seq > 1:
+            frame_prev = f"{seq-1:02d} - S - {frames[seq-2]} - {calcular_checksum_manual(frames[seq-2])}"
+            try:
+                client_socket.sendall(frame_prev.encode())
+                print(f"[CLIENT] Enviado fora de ordem: {frame_prev}")
+            except OSError:
+                print(f"[CLIENT] Erro ao enviar fora de ordem — socket fechado.")
 
 def ack_listener():
     global send_base
@@ -56,10 +90,12 @@ def ack_listener():
                     if send_base < next_seq:
                         t = threading.Timer(timeout, timeout_gbn)
                         timers['gbn'] = t; t.start()
-            elif protocolo == "2":                           
+            elif protocolo == "2":
                 if num not in acked:
                     acked.add(num)
-                    timers[num].cancel()
+                    if num in timers:
+                        timers[num].cancel()
+                        del timers[num]
                 if num == send_base:
                     while send_base in acked:
                         send_base += 1
@@ -93,6 +129,8 @@ def timeout_gbn():
     timers['gbn'] = t; t.start()
 
 def timeout_sr(idx: int):
+    if idx in acked:
+        return  # já foi recebido, ignora timeout
     print(f"[CLIENT] Timeout SR para pacote {idx:02d}, retransmitindo")
     enviar_pacote(idx, frames[idx-1])
     t = threading.Timer(timeout, lambda: timeout_sr(idx))
@@ -101,8 +139,18 @@ def timeout_sr(idx: int):
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_socket.connect((HOST, PORT))
 
-protocolo   = input("Protocolo:\n1=Go‑Back‑N\n2=Repetição Seletiva\n-> ")
-modo_erro   = input("Modo:\n1=Seguro\n2=Com perda\n3=Com erro\n-> ")
+while True:
+    protocolo = input("Protocolo:\n1=Go‑Back‑N\n2=Repetição Seletiva\n-> ")
+    if protocolo in ["1", "2"]:
+        break
+    print("Valor inválido! Digite 1 ou 2.")
+
+while True:
+    modo_erro = input("Modo:\n1=Seguro\n2=Com perda\n3=Com erro\n-> ")
+    if modo_erro in ["1", "2", "3"]:
+        break
+    print("Valor inválido! Digite 1, 2 ou 3.")
+    
 packet_size = 3
 window_size = int(input("Tamanho da janela: "))
 timeout     = float(input("Timeout (segundos): "))
@@ -131,13 +179,22 @@ if protocolo == "1":
             next_seq += 1
         time.sleep(0.1)
 else:
-    while next_seq < send_base + window_size and next_seq <= n_frames:
+    # Envia todos os pacotes com timer SR
+    while next_seq <= n_frames:
         enviar_pacote(next_seq, frames[next_seq-1])
         t = threading.Timer(timeout, lambda idx=next_seq: timeout_sr(idx))
         timers[next_seq] = t; t.start()
         next_seq += 1
+
+    # Aguarda todos os ACKs com limite de tempo
+    max_wait = time.time() + timeout * 20
     while len(acked) < n_frames:
-        time.sleep(0.1)
+        faltando = [i for i in range(1, n_frames+1) if i not in acked]
+        print(f"[CLIENT] Aguardando ACKs: {faltando}")
+        if time.time() > max_wait:
+            print("[CLIENT] Tempo máximo de espera excedido. Encerrando.")
+            break
+        time.sleep(0.5)
 
 client_socket.sendall("FIM".encode())
 
