@@ -35,3 +35,13 @@ Nosso objetivo : o cliente deve se conectar ao servidor e enviar mensagens de te
 https://docs.google.com/document/d/1MR3oCOo52pLltc3Mz9VxpoINL5WqzYrdI8d1ve053KQ/edit?usp=sharing
 
 </details>
+
+<details>
+<summary>Como Rodar</summary>
+
+1. Rode primeiro o servidor.py
+2. Em seguida, execute o código do cliente.py
+3. Interaja com o cliente.py informando o que é solicitado
+4. Verifique se a mansagem enviada foi entregue corretamente
+
+</details>
