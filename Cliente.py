@@ -16,13 +16,10 @@ def calcular_checksum_manual(dados: str) -> str:
 
 def enviar_pacote(seq: int, carga: str):
     global modo_erro
-
-    #verifica se o socket ainda está aberto
     if client_socket.fileno() == -1:
         print(f"[CLIENT] Tentativa de envio ignorada — socket já foi fechado.")
         return
-
-    #delay aleatório apenas no modo 2 e 3
+    
     if modo_erro in ["2", "3"]:
         delay = random.uniform(0, 2)
         time.sleep(delay)
@@ -47,7 +44,6 @@ def enviar_pacote(seq: int, carga: str):
         print(f"[CLIENT] Erro: não foi possível enviar o pacote {seq:02d} — socket fechado.")
         return
 
-    #envio duplicado ou fora de ordem (somente nos modos 2 e 3)
     if modo_erro in ["2", "3"] and random.random() < 0.2:
         tipo = random.choice(["duplicado", "fora_ordem"])
         time.sleep(0.1)
@@ -132,7 +128,7 @@ def timeout_gbn():
 
 def timeout_sr(idx: int):
     if idx in acked:
-        return  # já foi recebido, ignora timeout
+        return 
     print(f"[CLIENT] Timeout SR para pacote {idx:02d}, retransmitindo")
     enviar_pacote(idx, frames[idx-1])
     if idx in timers:
@@ -183,14 +179,12 @@ if protocolo == "1":
             next_seq += 1
         time.sleep(0.1)
 else:
-    # Envia todos os pacotes com timer SR
     while next_seq <= n_frames:
         enviar_pacote(next_seq, frames[next_seq-1])
         t = threading.Timer(timeout, lambda idx=next_seq: timeout_sr(idx))
         timers[next_seq] = t; t.start()
         next_seq += 1
 
-    # Aguarda todos os ACKs com limite de tempo
     max_wait = time.time() + timeout * 20
     while len(acked) < n_frames:
         faltando = [i for i in range(1, n_frames+1) if i not in acked]
