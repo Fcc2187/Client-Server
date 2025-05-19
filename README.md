@@ -41,7 +41,7 @@ https://docs.google.com/document/d/1MR3oCOo52pLltc3Mz9VxpoINL5WqzYrdI8d1ve053KQ/
 
 1. Rode primeiro o servidor.py
 2. Em seguida, execute o código do cliente.py
-3. Interaja com o cliente.py informando o que é solicitado
-4. Verifique se a mansagem enviada foi entregue corretamente
+3. Interaja com o cliente informando o que é solicitado
+4. Verifique se a mansagem enviada foi entregue corretamente ao servidor
 
 </details>
